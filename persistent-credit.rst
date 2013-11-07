@@ -71,19 +71,19 @@ The following new DHT query is defined:
 
 get_credits
 -----------
-Get up to K credits issued by/to a given credit id to/by credit ids close to another id. Credits with timestamps in the past should not be returned. ``get_credits`` has arguments "id", "d", "t", and "g":
+Get up to K credits issued by/to a given credit id to/by credit ids close to another id. Credits with timestamps in the past should not be returned. ``get_credits`` has the following arguments:
 
 id
-	The credit/node id of the querying node
+	The credit id of the querying node
 
 dir
 	The direction of the search. If "b" credits issued by the target id are requested. If "t" credits issued to target id are requested.
 
 target
-	The credit/node id which credits issued by/to are being requested.
+	The credit id which credits issued by/to are being requested.
 
 goal
-	The credit/node id which is the goal of the search, the best credits should be issued by/to ids close to this id.
+	The credit id which is the goal of the search, the best credits should be issued by/to ids close to this id.
 
 If the queried node has at least one credit issued by/to the target credit id it shall return two keys, "p" and "c":
 
