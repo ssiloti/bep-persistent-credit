@@ -76,38 +76,38 @@ Get up to K credits issued by/to a given credit id to/by credit ids close to ano
 id
 	The credit/node id of the querying node
 
-d
+dir
 	The direction of the search. If "b" credits issued by the target id are requested. If "t" credits issued to target id are requested.
 
-t
-	The "target" id. The credit/node id which credits issued by/to are being requested.
+target
+	The credit/node id which credits issued by/to are being requested.
 
-g
-	The "goal" id. The credit/node id which is the goal of the search, the best credits should be issued by/to ids close to this id.
+goal
+	The credit/node id which is the goal of the search, the best credits should be issued by/to ids close to this id.
 
 If the queried node has at least one credit issued by/to the target credit id it shall return two keys, "p" and "c":
 
-p
+peers
 	A list of strings containing public keys. The keys are represented as the SubjectPublicKeyInfo ASN.1 sequence defined in RFC5280 and encoded using DER.
 
-c
+credits
 	A list of credit dictionaries.
-    
+
 Each credit dictionary has the following keys:
 
 i
-	An index into "p" or one of the special values below. Indicates the peer who issued the credit.
+	An integer index into "peers" or one of the special values below. Indicates the peer who issued the credit.
 
 c
 	An integer representing the time value of the credit in POSIX time (Seconds elapsed since midnight UTC 1 January 1970).
 
 r
-	An index into "p" or one of the special values below. Indicates the peer who received the credit.
+	An integer index into "peers" or one of the special values below. Indicates the peer who received the credit.
 
 s
 	A signature over a bencoded dictionary containing keys "c" and "r" containing the time value of the credit and the public key of the receiving node respectively. The signature is generated using the private key associated with the public key referenced by "i".
 
-The following public key indexes have special meaning:
+The following peer indexes have special meaning:
 
 254. Refers to the public key of the client. I.e. the originator of the request.
 255. Refers to the public key corresponding to the "target" credit id.
