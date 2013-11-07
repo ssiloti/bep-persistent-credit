@@ -96,18 +96,18 @@ credits
 Each credit dictionary has the following keys:
 
 i
-	An integer index into "peers" or one of the special values below. Indicates the peer who issued the credit.
+	An integer index into the peers list or one of the special values below. Indicates the peer who issued the credit.
 
 c
 	An integer representing the time value of the credit in POSIX time (Seconds elapsed since midnight UTC 1 January 1970).
 
 r
-	An integer index into "peers" or one of the special values below. Indicates the peer who received the credit.
+	An integer index into the peers list or one of the special values below. Indicates the peer who received the credit.
 
 s
-	A signature over a bencoded dictionary containing keys "c" and "r" containing the time value of the credit and the public key of the receiving node respectively. The signature is generated using the private key associated with the public key referenced by "i".
+	A signature over the bencoded dictionary with keys "c" and "r" containing the time value of the credit and the public key of the receiving node respectively. The signature is generated using the private key associated with the public key referenced by "i".
 
-The following peer indexes have special meaning:
+The following peer list indexes have special meaning:
 
 254. Refers to the public key of the client. I.e. the originator of the request.
 255. Refers to the public key corresponding to the "target" credit id.
@@ -123,7 +123,7 @@ starttls
 	This message has no arguments. The receiver should respond by sending a ``starttls`` message back to the originating peer. After sending a starttls message no further messages may be sent until the secure channel has been established. Once the the peer which initiated the connection has both sent and received a starttls message it shall start a TLS handshake by sending a ClientHello message. Each peer shall use the key pair which determines their credit id when performing the TLS handshake. Client authentication is required. Once a TLS session has been established the stream of bittorrent messages resumes over the secure channel. Once a secure channel has been established the ``starttls`` message is ignored. Any previously established stream encryption or obfuscation shall be abandoned once the secure channel is established.
 
 pc_credit
-	This message is sent to peers the client is interested in but choked in order to provide an indirect credit list. It has a single argument "credits" which contains a compact list of credits in the same format as described above for the ``get_credits`` response. The list shall be ordered by issuer with the first credit being issued by the receiving peer and the last being issued to the client. The "target" public key index refers to the receiving peer.
+	This message is sent to peers the client is interested in but choked in order to provide an indirect credit list. It has two arguments "peers" and "credits" which follow the same format as described above for the ``get_credits`` response. The credit list shall be ordered by issuer with the first credit being issued by the receiving peer and the last being issued to the client. The "target" peer index refers to the receiving peer.
 
 Copyright
 =========
