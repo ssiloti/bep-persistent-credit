@@ -71,10 +71,13 @@ The following new DHT query is defined:
 
 get_credits
 -----------
-Get up to 6 credits issued by/to a given credit id to/by credit ids close to another id. Credits with timestamps in the past should not be returned. ``get_credits`` has three arguments:
+Get up to K credits issued by/to a given credit id to/by credit ids close to another id. Credits with timestamps in the past should not be returned. ``get_credits`` has arguments "id", "d", "t", and "g":
+
+id
+	The credit/node id of the querying node
 
 d
-	The direction of the search. If 'b' credits issued by the target id are requested. If 't' credits issued to target id are requested.
+	The direction of the search. If "b" credits issued by the target id are requested. If "t" credits issued to target id are requested.
 
 t
 	The "target" id. The credit/node id which credits issued by/to are being requested.
@@ -82,56 +85,34 @@ t
 g
 	The "goal" id. The credit/node id which is the goal of the search, the best credits should be issued by/to ids close to this id.
 
-If the queried node has at least one credit issued by/to the target credit id it shall return a key "credits" containing a list of up to 6 credits in a compact format as follows:
+If the queried node has at least one credit issued by/to the target credit id it shall return two keys, "p" and "c":
 
-+-----------+------------------------------------------------------------------------------+
-| Byte      | Value                                                                        |
-+===========+==============================================================================+
-| 0         | The number of unique peer public keys to follow (P)                          |
-+-----------+------------------------------------------------------------------------------+
-| 1         | The number of bytes in the first peer key                                    |
-+-----------+------------------------------------------------------------------------------+
-| 2..A      | The first peer key in DER format (Index 0)                                   |
-+-----------+------------------------------------------------------------------------------+
-| ...       + ...                                                                          |
-+-----------+------------------------------------------------------------------------------+
-| B         | The number of bytes in the last peer key                                     |
-+-----------+------------------------------------------------------------------------------+
-| B+1..C    | The second peer key in DER format (Index P-1)                                |
-+-----------+------------------------------------------------------------------------------+
-| C+1       | The number of credits to follow (R)                                          |
-+-----------+------------------------------------------------------------------------------+
-| C+2       | The peer key index which issued the credit                                   |
-+-----------+------------------------------------------------------------------------------+
-| C+3..C+10 | The timestamp of the credit as an unsigned 64-bit big endian integer         |
-+-----------+------------------------------------------------------------------------------+
-|           | representing the number of seconds elapsed since midnight UTC 1 January 1970 |
-+-----------+------------------------------------------------------------------------------+
-|           | I.e. POSIX time                                                              |
-+-----------+------------------------------------------------------------------------------+
-| C+11      | The peer key index to which the credit was issued                            |
-+-----------+------------------------------------------------------------------------------+
-| C+12      | The number of bytes in the credit signature                                  |
-+-----------+------------------------------------------------------------------------------+
-| C+13..D   | A signature taken over the big endian representation of the                  |
-+-----------+------------------------------------------------------------------------------+
-|           | timestamp followed by one byte indicating the length of the                  |
-+-----------+------------------------------------------------------------------------------+
-|           | recipient's public key followed by the public key in DER format              |
-+-----------+------------------------------------------------------------------------------+
-|           | I.e. replace byte C+11 with the corresponding public key then take the       |
-+-----------+------------------------------------------------------------------------------+
-|           | signature over the range [C+3,C+12)                                          |
-+-----------+------------------------------------------------------------------------------+
-| ...       + ...                                                                          |
-+-----------+------------------------------------------------------------------------------+
+p
+	A list of strings containing public keys. The keys are represented as the SubjectPublicKeyInfo ASN.1 sequence defined in RFC5280 and encoded using DER.
 
-The following peer key indexes have special meaning:
+c
+	A list of credit dictionaries.
+    
+Each credit dictionary has the following keys:
+
+i
+	An index into "p" or one of the special values below. Indicates the peer who issued the credit.
+
+c
+	An integer representing the time value of the credit in POSIX time (Seconds elapsed since midnight UTC 1 January 1970).
+
+r
+	An index into "p" or one of the special values below. Indicates the peer who received the credit.
+
+s
+	A signature over a bencoded dictionary containing keys "c" and "r" containing the time value of the credit and the public key of the receiving node respectively. The signature is generated using the private key associated with the public key referenced by "i".
+
+The following public key indexes have special meaning:
 
 254. Refers to the public key of the client. I.e. the originator of the request.
 255. Refers to the public key corresponding to the "target" credit id.
 
-If the queried node has no credits from the given issuer_id a key "nodes" is returned containing the K nodes in the queried nodes routing table closest to the target id supplied in the query. See BEP 5 for the format of the "nodes" key.
+If the queried node has no credits issued to/by the given target id a key "nodes" is returned containing the K nodes in the queried nodes routing table closest to the target id supplied in the query. See BEP 5 for the format of the "nodes" key.
 
 Impact on Bittorrent Protocol
 =============================
