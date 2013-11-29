@@ -41,7 +41,7 @@ c <p *      bytes of piece data received by the client from other peers with p a
 \* <c p     bytes of piece data sent by y to each of the client's referrals
 ========    ==============================================================================================
 
-The above state is only maintained for peers who have established a secure channel to the client using the ``starttls`` message.
+The above state is only maintained for peers who have established a secure connection to the client using TLS.
 
 The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message shall contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client may send one or more ``receipts`` messages were each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
 
@@ -69,13 +69,13 @@ A client A's indirect reputation of a peer B is defined as ivalueA(B) equals the
 
 A client A's direct reputation of a peer B is defined as dvalueA(B) = ((A <- B) \* oA(B)) / ((A -> B) \* oA(Max)).
 
-If the client A has an existing direct relationship with a peer B then B's reputation is defined as dvalueA(B), else it is ivalueA(B).  This value is defined as reputationA(B).
+If the client A has an existing direct relationship with a peer B then B's reputation is defined as dvalueA(B), else it is ivalueA(B).  This value is defined as reputationA(B).  If a peer has not established a TLS connection, does not support the ``attribution`` and ``receipt`` messages, or does not have any local state at the client it is assigned a reputationA(B) of 1.
 
-When performing an optimistic unchoke the probability of unchoking a peer B is reputationA(B) / reputationA(\*).  Where reputationA(\*) is the sum of reputationA() for all potentially unchoked peers.  Peers without local state at the client are assigned a reputation of 1.
+When performing an optimistic unchoke the probability of unchoking a peer B is reputationA(B) / reputationA(\*).  Where reputationA(\*) is the sum of reputationA() for all potentially unchoked peers.
 
-When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  Any upload bandwidth remaining after all peers with an established reputation have been saturated is distributed evenly among all other interested and unchoked peers.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
+When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
 
-When incrementing (p <- c) after receipt of piece data, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
+When incrementing (p <- c) after receipt of piece data over a TLS connection, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
 
 Up to 2000 reputation ids are sent in a ``known_peers`` message.
 
@@ -93,9 +93,6 @@ When local state is transmitted over the network it is represented as a bencoded
 
 subject
     The reputation id of the peer whose state this is for.
-
-time
-    An integer representing the time this state was generated in POSIX time (Seconds elapsed since 1970-01-01T00:00Z)
 
 ds
     c -> p
@@ -118,7 +115,7 @@ rr
 sig
     A cryptographic signature of the dictionary with this key removed.  The signature must be generated using the client's private key.
 
-The client's reputation id is always implied based on context.
+The client's reputation id is always implied based on context.  When the client receives a state dictionary for a subject at an intermediary for which the client already has a state stored locally the new state supersedes the old state only if all state values are greater-than-or-equal-to those in the stored state.
 
 
 Impact on DHT
@@ -163,7 +160,7 @@ state
 Impact on Bittorrent Protocol
 =============================
 
-Per BEP 10, the following extension messages are defined:
+Per BEP 10, the following extension messages are defined. Except for ``starttls`` all messages must only be sent on a connection which has been secured with TLS and must be ignored if received on a non-TLS connection.
 
 
 starttls
@@ -173,22 +170,22 @@ This message has no payload.  The recipient should respond by sending a ``startt
 
 known_peers
 -----------
-Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array should contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).
+Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array should contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).  This message must be ignored if the sender does not support the ``receipts`` message.  This message must only be sent to peers which supports the ``receipts`` message.
 
 
 receipts
 --------
-Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state dictionaries of the sender at the corresponding intermediary.
+Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state dictionaries of the sender at the corresponding intermediary.  This message should only be sent on a connection which the client has received a ``known_peers`` message.
 
 
 attribution
 -----------
-Indicates which intermediaries a the sender considered when unchoking the recipient, and in what proportion each contributed to the decision.  Its payload is a dictionary whose keys are reputation ids and values are integers which must add up to 100.
+Indicates which intermediaries a the sender considered when unchoking the recipient, and in what proportion each contributed to the decision.  Its payload is a dictionary whose keys are reputation ids and values are integers which must add up to 100.  This message must only be sent to peers which support the ``receipt`` message.  This message must be ignored if the sender does not support the ``receipt`` message.  Clients which implement this message must implement the ``update_standing`` DHT query.
 
 
 target_rate
 -----------
-Tells the recipient what the sender's target upload rate to it is.  Its payload is an integer indicating the target upload rate in bytes/second for the recipient based on the recipient's reputation.  A value of 0 indicates the recipient's reputation does not determine the sender's upload rate.
+Tells the recipient what the sender's target upload rate to it is.  Its payload is an integer indicating the target upload rate in bytes/second for the recipient based on the recipient's reputation.  A value of 0 indicates the recipient's reputation does not determine the sender's upload rate.  This message is optional.  This message must only be sent on a connection which the sender has sent an ``attribution`` message.
 
 
 receipt
@@ -200,6 +197,8 @@ state
 
 receipts
     A list of dictionaries as described in the ``update_standing`` DHT query. One for each of the intermediaries listed in the ``attribution`` message.
+
+This message must only be sent on a connection which the client has received an ``attribution`` message on.  This message must be ignored if received on a connection which the client has not sent an ``attribution`` message on.
 
 
 Differences from One hop Reputations
