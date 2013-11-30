@@ -43,6 +43,8 @@ c <p *      bytes of piece data received by the client from other peers with p a
 
 The above state is only maintained for peers who have sent an ``identify`` message.
 
+The client MUST store its contact info in "compact" format as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.
+
 The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client may send one or more ``receipts`` messages were each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
 
 If the client decides to unchoke a peer on the basis of one or more receipts received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``receipts`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
@@ -51,7 +53,7 @@ If the client has determined a target upload rate to a peer based on its reputat
 
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
-While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``find_node`` DHT query.
+While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``get`` DHT query with its reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
 
 
 Default policy
@@ -73,7 +75,7 @@ If the client A has an existing direct relationship with a peer B then B's reput
 
 When performing an optimistic unchoke the probability of unchoking a peer B is reputationA(B) / reputationA(\*).  Where reputationA(\*) is the sum of reputationA() for all potentially unchoked peers.
 
-When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U) * U(*).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers and U(*) is the client's total upload rate.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
+When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U) * U(*).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers and U(*) is the client's total upload rate or the user configured upload rate limit.  If the user has configured an upload rate limit the client sends ``target_rate`` messages to each eligible peer whenever the peer's target rate changes.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
 
 When incrementing (p <- c) after receipt of piece data wrapped in an ``sm`` message, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
 
@@ -113,15 +115,13 @@ rr
     \* <c p
 
 sig
-    A cryptographic signature of the dictionary with this key removed.  The signature MUST be generated using the client's private key.
+    A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the client's private key.
 
 The client's reputation id is always implied based on context.  When the client receives a state dictionary for a subject at an intermediary for which the client already has a state stored locally the new state supersedes the old state only if all state values are greater-than-or-equal-to those in the stored state.
 
 
 Impact on DHT
 =============
-
-This BEP assumes that DHT nodes will use their client's reputation identity as their node id.
 
 The following new DHT query is defined:
 
@@ -146,7 +146,7 @@ volume
     The total bytes of piece data sent from the sender to the recipient for this session.
 
 sig
-    A cryptographic signature of the dictionary with keys "session", "sender", "recipient", "intermediary", and "volume".  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
+    A cryptographic signature of the dictionary with keys "session", "sender", "recipient", "intermediary", and "volume".  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
 
 The client SHALL respond with the following keys:
 
@@ -177,7 +177,7 @@ After the client has both sent and received this message it SHOULD send all subs
 
 sm
 --
-One or more bittorrent messages secured in a crypto box.  Its payload is the output of the ``crypto_secretbox`` function provided by libsodium_.  The secret key is the SHA256 hash of the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the client's private key and the public key received in the ``identify`` message.  The nonce MUST be the value sent in the ``nonce`` key of the ``identify`` message plus the number of ``sm`` messages sent before this one.  This message MUST be ignored if received on a connection which the client has not received an ``identify`` message on.
+One or more bittorrent messages secured in a crypto box.  Its payload is the output of the ``crypto_secretbox`` function provided by libsodium_.  The secret key is the SHA256 hash of the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the client's private key and the public key received in the ``identify`` message.  The nonce MUST be the value sent in the ``nonce`` key of the ``identify`` message plus the number of ``sm`` messages sent before this one.  For this addition the nonce is interpreted as an integer in big endian byte order.  This message MUST be ignored if received on a connection which the client has not received an ``identify`` message on.
 
 
 known_peers
@@ -240,6 +240,8 @@ This document has been placed in the public domain.
 .. _ed25519 library: https://github.com/nightcracker/ed25519
 
 .. _libsodium: https://github.com/jedisct1/libsodium
+
+.. _DHT store extension: http://www.rasterbar.com/products/libtorrent/dht_store.html
 
 
 ..
