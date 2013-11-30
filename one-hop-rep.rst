@@ -177,7 +177,7 @@ After the client has both sent and received this message it SHOULD send all subs
 
 sm
 --
-One or more bittorrent messages secured in a crypto box.  Its payload is the output of the ``crypto_secretbox`` function provided by libsodium_.  The secret key is the SHA256 hash of the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the client's private key and the public key received in the ``identify`` message.  The nonce MUST be the value sent in the ``nonce`` key of the ``identify`` message plus the number of ``sm`` messages sent before this one.  This message MUST be ignored is received on a connection which the client has not received an ``identify`` message on.
+One or more bittorrent messages secured in a crypto box.  Its payload is the output of the ``crypto_secretbox`` function provided by libsodium_.  The secret key is the SHA256 hash of the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the client's private key and the public key received in the ``identify`` message.  The nonce MUST be the value sent in the ``nonce`` key of the ``identify`` message plus the number of ``sm`` messages sent before this one.  This message MUST be ignored if received on a connection which the client has not received an ``identify`` message on.
 
 
 known_peers
