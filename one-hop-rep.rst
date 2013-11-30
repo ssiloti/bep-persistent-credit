@@ -73,7 +73,7 @@ If the client A has an existing direct relationship with a peer B then B's reput
 
 When performing an optimistic unchoke the probability of unchoking a peer B is reputationA(B) / reputationA(\*).  Where reputationA(\*) is the sum of reputationA() for all potentially unchoked peers.
 
-When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
+When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U) * U(*).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers and U(*) is the client's total upload rate.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
 
 When incrementing (p <- c) after receipt of piece data over a TLS connection, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
 
