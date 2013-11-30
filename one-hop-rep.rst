@@ -51,8 +51,6 @@ If the client decides to unchoke a peer on the basis of one or more receipts rec
 
 All piece data sent on a connection which the client has sent an ``attribution`` message on MUST be wrapped in an ``sm`` message.
 
-If the client has determined a target upload rate to a peer based on its reputation it SHALL send a ``target_rate`` message whenever that rate changes.
-
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
 While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``get`` DHT query with its reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
