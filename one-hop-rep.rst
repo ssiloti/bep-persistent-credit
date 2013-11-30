@@ -49,6 +49,8 @@ The first time a peer becomes interested in the client the client sends a ``know
 
 If the client decides to unchoke a peer on the basis of one or more receipts received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``receipts`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
 
+All piece data sent on a connection which the client has sent an ``attribution`` message on MUST be wrapped in an ``sm`` message.
+
 If the client has determined a target upload rate to a peer based on its reputation it SHALL send a ``target_rate`` message whenever that rate changes.
 
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
@@ -174,6 +176,7 @@ nonce
     A randomly generated 24 byte string.
 
 After the client has both sent and received this message it SHOULD send all subsequent messages inside an ``sm`` message.
+
 
 sm
 --
