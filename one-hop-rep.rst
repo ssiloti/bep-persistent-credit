@@ -37,8 +37,8 @@ c -> p      bytes of piece data sent directly from the client to the peer
 c <- p      bytes of piece data sent directly from the peer to the client
 c p> *      bytes of piece data sent to other peers due to the p's recommendation as the intermediary
 c <p *      bytes of piece data received by the client from other peers with p active as the intermediary
-\* c> p     bytes of piece data sent by any peer to y due to the client's referrals
-\* <c p     bytes of piece data sent by y to each of the client's referrals
+\* c> p     bytes of piece data sent by any peer to p due to the client's referrals
+\* <c p     bytes of piece data sent by p to each of the client's referrals
 ========    ==============================================================================================
 
 The above state is only maintained for peers who have sent an ``identify`` message.
