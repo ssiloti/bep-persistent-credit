@@ -171,6 +171,8 @@ pk
 nonce
     A randomly generated 24 byte string.
 
+After the first ``identify`` message is received on a connection any subsequent ``identify`` messages are ignored.
+
 Any MSE/PE obfuscation is abandoned after sending an identify message.  After an identify message is sent the peer protocol becomes a series of encrypted and authenticated packets.  The first 4 bytes are the length of the packet including the tag.  The next 16 bytes are a Poly1305 tag computed over the remaining, encrypted bytes.  The remaining bytes are encrypted using ChaCha20.  Each packet contains one-or-more length prefixed Bittorrent messages.  Bittorrent messages MAY span multiple packets.
 
 The ChaCha20 secret key is the SHA256 hash of an 80 byte string where the first 32 bytes are the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the sender's private key and the public key received in the ``identify`` message, the next 24 bytes are the nonce sent by the peer which initiated the connection, and the last 24 bytes are the nonce of the peer which accepted the connection.
