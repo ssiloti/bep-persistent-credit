@@ -49,8 +49,6 @@ The first time a peer becomes interested in the client the client sends a ``know
 
 If the client decides to unchoke a peer on the basis of one or more receipts received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``receipts`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
 
-All piece data sent on a connection which the client has sent an ``attribution`` message on MUST be wrapped in an ``sm`` message.
-
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
 While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``get`` DHT query with its reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
@@ -77,7 +75,7 @@ When performing an optimistic unchoke the probability of unchoking a peer B is r
 
 When seeding the client sends piece data to each unchoked and interested peer at rate reputationA(B) / reputationA(U) * U(*).  Where reputationA(U) is the sum of reputationA(B) for all unchoked and interested peers and U(*) is the client's total upload rate or the user configured upload rate limit.  If the user has configured an upload rate limit the client sends ``target_rate`` messages to each eligible peer whenever the peer's target rate changes.  If a peer fails to consume its allocated rate the remainder is distributed to the other peers in proportion to their target rates.  It is expected that clients otherwise retain their existing choking and rate allocation policies.
 
-When incrementing (p <- c) after receipt of piece data wrapped in an ``sm`` message, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
+When incrementing (p <- c) after receipt of piece data, the incremental value is multiplied by ((c -> \*) - (c <- \*)) / r(\*) if it is larger than 1.  Where (c -> \*) is bytes of piece data sent directly by the client to any peer, (c <- \*) is bytes of piece data directly received by the client from any peer, and r(\*) is the total number of bytes remaining in all actively downloading torrents.  This multiplication is not applied when calculating the fractional receipts for intermediaries.
 
 Up to 2000 reputation ids are sent in a ``known_peers`` message.
 
@@ -160,7 +158,7 @@ state
 Impact on Bittorrent Protocol
 =============================
 
-Per BEP 10, the following extension messages are defined. Except for ``identify`` and ``sm`` all messages MUST only be sent inside an ``sm`` message and MUST be ignored if received outside of an ``sm`` message.
+Per BEP 10, the following extension messages are defined.  All messages except ``identify`` MUST only be sent after an ``identify`` message has been sent.  All messages except ``identify`` MUST be ignored if received on a connection on which an ``identify`` has not been received.
 
 
 identify
@@ -173,12 +171,15 @@ pk
 nonce
     A randomly generated 24 byte string.
 
-After the client has both sent and received this message it SHOULD send all subsequent messages inside an ``sm`` message.
+Any MSE/PE obfuscation is abandoned after sending an identify message.  After an identify message is sent the peer protocol becomes a series of encrypted and authenticated packets.  The first 4 bytes are the length of the packet including the tag.  The next 16 bytes are a Poly1305 tag computed over the remaining, encrypted bytes.  The remaining bytes are encrypted using ChaCha20.  Each packet contains one-or-more length prefixed Bittorrent messages.  Bittorrent messages MAY span multiple packets.
 
+The ChaCha20 secret key is the SHA256 hash of an 80 byte string where the first 32 bytes are the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the sender's private key and the public key received in the ``identify`` message, the next 24 bytes are the nonce sent by the peer which initiated the connection, and the last 24 bytes are the nonce of the peer which accepted the connection.
 
-sm
---
-One or more bittorrent messages secured in a crypto box.  Its payload is the output of the ``crypto_secretbox`` function provided by libsodium_.  The secret key is the SHA256 hash of an 80 byte string where the first 32 bytes are the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the sender's private key and the public key received in the ``identify`` message, the next 24 bytes are the nonce sent by the peer which initiated the connection and the remaining 24 bytes are the nonce of the peer which accepted the connection.  The nonce MUST be a monotonically increasing, unsigned, big endian integer which has the initial value sent in the ``identify`` message and is incremented after each ``sm`` message is sent.  This message MUST be ignored if received on a connection which the client has not received an ``identify`` message on.  If authentication of this message fails the connection to the sender SHOULD be closed immediately.
+Each packet uses a unique nonce for ChaCha20.  The nonce is a 64-bit, unsigned, little endian integer.  Its initial value is 1 for the peer which initiated the connection and 2 for the peer which accepted it.  After each packet the nonce is incremented by 2.
+
+The Poly1305 key used for each packet is generated by taking the first 32 bytes of the output from ChaCha20 with the block counter set to zero.  The remaining 32 bytes of output from the first block are discarded.
+
+The packet body is encrypted by XORing the plaintext with the output of ChaCha20 with the initial block counter set to one.
 
 
 known_peers
@@ -239,8 +240,6 @@ This document has been placed in the public domain.
    NSDI 2008. https://www.usenix.org/legacy/event/nsdi08/tech/full_papers/piatek/piatek_html/
 
 .. _ed25519 library: https://github.com/nightcracker/ed25519
-
-.. _libsodium: https://github.com/jedisct1/libsodium
 
 .. _DHT store extension: http://www.rasterbar.com/products/libtorrent/dht_store.html
 
