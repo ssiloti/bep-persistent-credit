@@ -35,7 +35,7 @@ Notation    Definition
 ========    ==============================================================================================
 c -> p      bytes of piece data sent directly from the client to the peer
 c <- p      bytes of piece data sent directly from the peer to the client
-c p> *      bytes of piece data sent to other peers due to the p's recommendation as the intermediary
+c p> *      bytes of piece data sent to other peers due to p's recommendation as the intermediary
 c <p *      bytes of piece data received by the client from other peers with p active as the intermediary
 \* c> p     bytes of piece data sent by any peer to p due to the client's referrals
 \* <c p     bytes of piece data sent by p to each of the client's referrals
@@ -45,9 +45,9 @@ The above state is only maintained for peers who have sent an ``identify`` messa
 
 The client MUST store its contact info in "compact" format as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.
 
-The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client may send one or more ``receipts`` messages were each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
+The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client MAY send one or more ``standing`` messages where each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
 
-If the client decides to unchoke a peer on the basis of one or more receipts received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``receipts`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
+If the client decides to unchoke a peer on the basis of its standing with one or more intermediary received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``standing`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
 
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
@@ -81,18 +81,20 @@ Up to 2000 reputation ids are sent in a ``known_peers`` message.
 
 For each active download session the client sends a ``receipt`` message to the sender every 10 minutes or for every 10MB of data received, whichever happens later.
 
-When the client receives a ``known_peers`` message from a peer which the client is interested in it initially sends a ``receipts`` message with the 10 least observed peers which appear in the ``known_peer`` list received from that peer and which the client has good standing with.  Each minute afterwards the client sends a ``receipts`` message with the next most observed peer until either the client is no longer interested in the peer, the peer unchokes the client and does not indicate a target rate by sending a ``target_rate`` message, or the observed upload rate from the peer drops below 90% of the rate indicated in the most recent ``target_rate`` message.
+When the client receives a ``known_peers`` message from a peer which the client is interested in it initially sends a ``standing`` message with the 10 least observed peers which appear in the ``known_peer`` list received from that peer and which the client has good standing with.  Each minute afterwards the client sends a ``standing`` message with the next most observed peer until either the client is no longer interested in the peer, the peer unchokes the client and does not indicate a target rate by sending a ``target_rate`` message, or the observed upload rate from the peer drops below 90% of the rate indicated in the most recent ``target_rate`` message.
 
 The client considers at most 10 intermediaries when computing a peer's ivalueA(B).
+
+For a peer p, a standing update cannot cause (\* c> p) to exceed (c <- p) + (\* <c p) - (c -> p).  Any standing update which would violate this constraint is rejected either in part or in full.
 
 
 State representation
 ====================
 
-When local state is transmitted over the network it is represented as a bencoded dictionary with the following keys:
+Local state is represented as a bencoded dictionary with the following keys:
 
 subject
-    The reputation id of the peer whose state this is for.
+    The reputation id of the peer whose state this is for.  This key SHOULD be omitted when sending state over the network and implied based on context.  Clients MUST validate this key if it is present.
 
 ds
     c -> p
@@ -113,23 +115,18 @@ rr
     \* <c p
 
 sig
-    A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the client's private key.
+    A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.
 
-The client's reputation id is always implied based on context.  When the client receives a state dictionary for a subject at an intermediary for which the client already has a state stored locally the new state supersedes the old state only if all state values are greater-than-or-equal-to those in the stored state.
-
-
-Impact on DHT
-=============
-
-The following new DHT query is defined:
+The signer's reputation id is always implied based on context.  When the client receives a state dictionary for a peer at an intermediary for which the client already has a state stored locally the new state supersedes the old state only if all state values are greater-than-or-equal-to those in the stored state.
 
 
-update_standing
----------------
-Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer. It has the following parameters:
+Receipt representation
+======================
+
+When piece data is transfered based on a peer's standing with an intermediary the recipient generates one or more receipts attesting to the transfer having taken place.  It is represented as a bencoded dictionary with the following keys:
 
 session
-    A randomly generated string of length 4. It is used to uniquely identify a transfer session between two peers.
+    A monotonically increasing integer which uniquely identifies the session.  The client SHOULD increment the counter each time a new session is started.  Clients MUST NOT reuse session identifiers after a session's state has been discarded.
 
 id
     The reputation id of the peer who sent the piece data.
@@ -144,7 +141,18 @@ volume
     The total bytes of piece data sent from the sender to the recipient for this session.
 
 sig
-    A cryptographic signature of the dictionary with keys "session", "sender", "recipient", "intermediary", and "volume".  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
+    A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
+
+
+Impact on DHT
+=============
+
+The following new DHT query is defined:
+
+
+update_standing
+---------------
+Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer. It's parameters are a receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.
 
 The client SHALL respond with the following keys:
 
@@ -173,7 +181,7 @@ nonce
 
 After the first ``identify`` message is received on a connection any subsequent ``identify`` messages are ignored.
 
-Any MSE/PE obfuscation is abandoned after sending an identify message.  After an identify message is sent the peer protocol becomes a series of encrypted and authenticated packets.  The first 4 bytes are the length of the packet including the tag.  The next 16 bytes are a Poly1305 tag computed over the remaining, encrypted bytes.  The remaining bytes are encrypted using ChaCha20.  Each packet contains one-or-more length prefixed Bittorrent messages.  Bittorrent messages MAY span multiple packets.
+Any MSE/PE obfuscation is abandoned after sending an identify message.  After an identify message is sent the peer protocol becomes a series of encrypted and authenticated packets.  The first 4 bytes are the length of the packet including the tag.  The next 16 bytes are a Poly1305 tag computed over the remaining, encrypted, payload.  The payload is encrypted using ChaCha20.  Each packet contains one-or-more length prefixed Bittorrent messages.  Bittorrent messages MAY span multiple packets.
 
 The ChaCha20 secret key is the SHA256 hash of an 80 byte string where the first 32 bytes are the output of the function ``ed25519_key_exchange`` provided by the `ed25519 library`_ using the sender's private key and the public key received in the ``identify`` message, the next 24 bytes are the nonce sent by the peer which initiated the connection, and the last 24 bytes are the nonce of the peer which accepted the connection.
 
@@ -186,10 +194,10 @@ The packet body is encrypted by XORing the plaintext with the output of ChaCha20
 
 known_peers
 -----------
-Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array SHOULD contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).  This message MUST be ignored if the sender does not support the ``receipts`` message.  This message MUST only be sent to peers which support the ``receipts`` message.
+Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array SHOULD contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).  This message MUST be ignored if the sender does not support the ``standing`` message.  This message MUST only be sent to peers which support the ``standing`` message.
 
 
-receipts
+standing
 --------
 Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state dictionaries of the sender at the corresponding intermediary.  This message SHOULD only be sent on a connection which the client has received a ``known_peers`` message.
 
@@ -212,7 +220,7 @@ state
     The local state of the sender at the recipient.
 
 receipts
-    A list of dictionaries as described in the ``update_standing`` DHT query. One for each of the intermediaries listed in the ``attribution`` message.
+    A list of receipt dictionaries, one for each of the intermediaries listed in the ``attribution`` message.  Clients SHOULD omit the id and recipient keys.  Clients MUST validate the id and recipient keys if they are present.
 
 This message MUST only be sent on a connection which the client has received an ``attribution`` message on.  This message MUST be ignored if received on a connection which the client has not sent an ``attribution`` message on.
 
@@ -224,7 +232,7 @@ Some key aspects in which this BEP deviates from the paper by Michael Piatek, et
 
 - The average rate from y to x is not part of the local state.
 - No gossip bit is included in the list of potential intermediaries.
-- Receipts are sent by the receiver to the sender at the receiver's leisure rather than requested by the sender.  This is so that receivers can control which intermediaries they wish to utilize based on their bandwidth needs.
+- Proof of standing is sent by the receiver to the sender at the receiver's leisure rather than requested by the sender.  This is so that receivers can control which intermediaries they wish to utilize based on their bandwidth needs.
 - The existing rate based tit-for-tat system is retained while the client is downloading.  Volume based reputation is only used to determine upload rates while seeding and to guide optimistic unchoking.
 - vI(B) is modified so that it can never be greater than 1. This so that intermediaries cannot create Sybil identities with arbitrarily large vI(B).
 - wA(I) and dvalueA(B) take the observation count of the intermediary/direct peer into account.
