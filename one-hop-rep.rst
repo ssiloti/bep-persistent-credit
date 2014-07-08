@@ -61,13 +61,13 @@ Clients are not required to implement the default policy.
 
 The client maintains a count of the number of times it observes a peer B, defined as oA(B).  When a session ends where peer B has uploaded piece data to the client, the observation counts of the peers the peer reported in its ``known_peers`` message are incremented by (c <- s) / ((c <24h \*) + r(t)).  Where (c <- s) is the bytes of piece data received during the session, (c <24h \*) is the total bytes of piece data received over the last 24 hours, and r(t) is the number of bytes remaining to be downloaded for the torrent the session took place on.  When a peer fails to respond to an ``update_standing`` message its observation count is reduced by 20% or 2, whichever is larger.
 
-A client A's valuation of an intermediary I is defined as wA(I) = (((A <- I) + (A <I \*))) \* oA(I)) / (((A -> I) + (A I> \*)) \* oA(Max)).  Where oA(Max) is largest observation count of any intermediary the client has local state for.
+A client A's direct reputation of a peer B is defined as dvalueA(B) = ((A <- B) - (A -> B) + (\* <A B) - (\* A> B)) \* (oA(B) / oA(Max)).  Where oA(Max) is largest observation count of any intermediary the client has local state for.
 
-A client A's valuation of a peer B at intermediary I is defined as vI(B) = ((\* <I B) + (I <- B)) / ((\* <I B) + (I <- B) + (* I> B) + (I -> B)).
+A client A's valuation of an intermediary I is defined as wA(I) = ((A <- I) - (A -> I) + (A <I \*) - (A I> \*)) \* (oA(I) / oA(Max)).
 
-A client A's indirect reputation of a peer B is defined as ivalueA(B) equals the sum of wA(I) * vI(B) for each mutual intermediary I, divided by the number of mutual intermediaries being used.
+A client A's valuation of a peer B at intermediary I is defined as vI(B) = (I <- B) - (I -> B) + (\* <I B) - (\* I> B).
 
-A client A's direct reputation of a peer B is defined as dvalueA(B) = ((A <- B) \* oA(B)) / ((A -> B) \* oA(Max)).
+A client A's indirect reputation of a peer B is defined as ivalueA(B) equals the sum of wA(I) * (vI(B) / sum(vI(*)) for each mutual intermediary I, divided by the number of mutual intermediaries being used.
 
 If the client A has an existing direct relationship with a peer B then B's reputation is defined as dvalueA(B), else it is ivalueA(B).  This value is defined as reputationA(B).  If a peer has not sent an ``identify`` message, does not support the ``attribution`` and ``receipt`` messages, or does not have any local state at the client it is assigned a reputationA(B) of 1.
 
@@ -234,6 +234,7 @@ Some key aspects in which this BEP deviates from the paper by Michael Piatek, et
 - No gossip bit is included in the list of potential intermediaries.
 - Proof of standing is sent by the receiver to the sender at the receiver's leisure rather than requested by the sender.  This is so that receivers can control which intermediaries they wish to utilize based on their bandwidth needs.
 - The existing rate based tit-for-tat system is retained while the client is downloading.  Volume based reputation is only used to determine upload rates while seeding and to guide optimistic unchoking.
+- The default policy uses summation rather than division to compute reputation values.  This is more resistant to whitewashing attacks.
 - vI(B) is modified so that it can never be greater than 1. This so that intermediaries cannot create Sybil identities with arbitrarily large vI(B).
 - wA(I) and dvalueA(B) take the observation count of the intermediary/direct peer into account.
 - Known peers (top K sets) are sent lazily when the connection enters the appropriate state rather than exchanged at connection time.
