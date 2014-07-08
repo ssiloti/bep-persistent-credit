@@ -53,6 +53,8 @@ While the client is receiving piece data from a peer which has sent an ``attribu
 
 While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``get`` DHT query with its reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
 
+For peer p, a standing update cannot cause (\* c> p) to exceed (c <- p) + (\* <c p) - (c -> p).  Any standing update which would violate this constraint is rejected either in part or in full.
+
 
 Default policy
 ==============
@@ -84,8 +86,6 @@ For each active download session the client sends a ``receipt`` message to the s
 When the client receives a ``known_peers`` message from a peer which the client is interested in it initially sends a ``standing`` message with the 10 least observed peers which appear in the ``known_peer`` list received from that peer and which the client has good standing with.  Each minute afterwards the client sends a ``standing`` message with the next most observed peer until either the client is no longer interested in the peer, the peer unchokes the client and does not indicate a target rate by sending a ``target_rate`` message, or the observed upload rate from the peer drops below 90% of the rate indicated in the most recent ``target_rate`` message.
 
 The client considers at most 10 intermediaries when computing a peer's ivalueA(B).
-
-For a peer p, a standing update cannot cause (\* c> p) to exceed (c <- p) + (\* <c p) - (c -> p).  Any standing update which would violate this constraint is rejected either in part or in full.
 
 
 State representation
