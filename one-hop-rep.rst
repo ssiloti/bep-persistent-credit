@@ -43,8 +43,6 @@ c <p *      bytes of piece data received by the client from other peers with p a
 
 The above state is only maintained for peers who have sent an ``identify`` message.
 
-The client MUST store its contact info in "compact" format as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.
-
 The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client MAY send one or more ``standing`` messages where each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
 
 If the client decides to unchoke a peer on the basis of its standing with one or more intermediary received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``standing`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
@@ -142,6 +140,21 @@ volume
 
 sig
     A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
+
+
+Contact Information
+===================
+
+The client MUST store its contact info as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.  The item MUST be stored using the string "ip" as the salt value.  The item's value is the IP and port which the client is listening for DHT messages on.  It may have one of three formats depending on which IP versions the peer is listening on.  All values are stored in "compact" format.
+
+IPv4 only
+    IPv4 address followed by port for a total of 6 bytes.
+
+IPv6 only
+    IPv6 address followed by port for a total of 18 bytes.
+
+IPv4 and IPv6
+    IPv4 address followed by IPv6 address followed by port for a total of 22 bytes.
 
 
 Impact on DHT
