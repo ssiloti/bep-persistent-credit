@@ -126,7 +126,7 @@ When piece data is transfered based on a peer's standing with an intermediary th
 session
     A monotonically increasing integer which uniquely identifies the session.  The client SHOULD increment the counter each time a new session is started.  Clients MUST NOT reuse session identifiers after a session's state has been discarded.
 
-id
+sender
     The reputation id of the peer who sent the piece data.
 
 recipient
@@ -165,7 +165,16 @@ The following new DHT query is defined:
 
 update_standing
 ---------------
-Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer. It's parameters are a receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.
+Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  The message's payload is a dictionary with the following keys:
+
+id
+    The reputation id of the sender.
+
+state
+    The local state dictionary of the intermediary at the sender.
+
+receipt
+    Receipt representation.  Clients SHOULD omit the intermediary and sender keys.  Clients MUST validate the intermediary and sender keys if they are present.
 
 The client SHALL respond with the following keys:
 
