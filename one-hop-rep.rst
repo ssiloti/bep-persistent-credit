@@ -168,18 +168,18 @@ update_standing
 Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  The message's payload is a dictionary with the following keys:
 
 id
-    The reputation id of the sender.
+    The sender's DHT node id.
 
 state
     The local state dictionary of the intermediary at the sender.
 
 receipt
-    Receipt representation.  Clients SHOULD omit the intermediary and sender keys.  Clients MUST validate the intermediary and sender keys if they are present.
+    Receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.
 
 The client SHALL respond with the following keys:
 
 id
-    The reputation id of the client.
+    The client's DHT node id.
 
 state
     Local state dictionary for the recipient at the client.
