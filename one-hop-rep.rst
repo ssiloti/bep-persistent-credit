@@ -145,7 +145,7 @@ sig
 Contact Information
 ===================
 
-The client MUST store its contact info as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.  The item MUST be stored using the string "ip" as the salt value.  The item's value is the IP and port which the client is listening for DHT messages on.  It may have one of three formats depending on which IP versions the peer is listening on.  All values are stored in "compact" format.
+The client MUST store its contact info as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.  The item's value is the IP and port which the client is listening for DHT messages on.  It may have one of three formats depending on which IP versions the peer is listening on.  All values are stored in "compact" format.
 
 IPv4 only
     IPv4 address followed by port for a total of 6 bytes.
@@ -154,7 +154,7 @@ IPv6 only
     IPv6 address followed by port for a total of 18 bytes.
 
 IPv4 and IPv6
-    IPv4 address followed by IPv6 address followed by port for a total of 22 bytes.
+    IPv4 address followed by IPv6 address followed by port for a total of 22 bytes.  If an item's value is larger than 22 bytes, the first 22 bytes are assumed to follow this format.
 
 
 Impact on DHT
