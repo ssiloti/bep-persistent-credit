@@ -165,13 +165,13 @@ The following new DHT query is defined:
 
 update_standing
 ---------------
-Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  The message's payload is a dictionary with the following keys:
+Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  Note that this message MUST be sent directly to the intermediary specified in the receipt, it is never sent as part of a DHT traversal.  The DHT message format is used here only for convenience.  The message's payload is a dictionary with the following keys:
 
 id
     The sender's DHT node id.
 
 state
-    The local state dictionary of the intermediary at the sender.
+    The local state representation of the intermediary at the sender.
 
 receipt
     Receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.
@@ -182,13 +182,13 @@ id
     The client's DHT node id.
 
 state
-    Local state dictionary for the recipient at the client.
+    Local state representation for the recipient at the client.
 
 
 Impact on Bittorrent Protocol
 =============================
 
-Per BEP 10, the following extension messages are defined.  All messages except ``identify`` MUST only be sent after an ``identify`` message has been sent.  All messages except ``identify`` MUST be ignored if received on a connection on which an ``identify`` has not been received.
+Per DEP 10, The following extension messages are defined.  All messages except ``identify`` MUST only be sent after an ``identify`` message has been sent.  All messages except ``identify`` MUST be ignored if received on a connection on which an ``identify`` has not been received.  All messages except ``target_rate`` are required.  A peer which does not support all required messages SHOULD be treated as if it does not support any of them.
 
 
 identify
@@ -216,17 +216,17 @@ The packet body is encrypted by XORing the plaintext with the output of ChaCha20
 
 known_peers
 -----------
-Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array SHOULD contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).  This message MUST be ignored if the sender does not support the ``standing`` message.  This message MUST only be sent to peers which support the ``standing`` message.
+Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array SHOULD contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).
 
 
 standing
 --------
-Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state dictionaries of the sender at the corresponding intermediary.  This message SHOULD only be sent on a connection which the client has received a ``known_peers`` message.
+Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state representations of the sender at the corresponding intermediary.  Clients MUST ignore any items in the state representations which it does not understand, except to include them when verifying the signature.  This message SHOULD only be sent on a connection which the client has received a ``known_peers`` message.
 
 
 attribution
 -----------
-Indicates which intermediaries a the sender considered when unchoking the recipient, and in what proportion each contributed to the decision.  Its payload is a dictionary whose keys are reputation ids and values are integers which MUST add up to 100.  This message MUST only be sent to peers which support the ``receipt`` message.  This message MUST be ignored if the sender does not support the ``receipt`` message.  Clients which implement this message MUST implement the ``update_standing`` DHT query.
+Indicates which intermediaries a the sender considered when unchoking the recipient, and in what proportion each contributed to the decision.  Its payload is a dictionary whose keys are reputation ids and values are integers which MUST add up to 100.  Clients which implement this message MUST implement the ``update_standing`` DHT query.
 
 
 target_rate
@@ -242,7 +242,7 @@ state
     The local state of the sender at the recipient.
 
 receipts
-    A list of receipt dictionaries, one for each of the intermediaries listed in the ``attribution`` message.  Clients SHOULD omit the id and recipient keys.  Clients MUST validate the id and recipient keys if they are present.
+    A list of receipt representations, one for each of the intermediaries listed in the ``attribution`` message.  Clients SHOULD omit the id and recipient keys.  Clients MUST validate the id and recipient keys if they are present.
 
 This message MUST only be sent on a connection which the client has received an ``attribution`` message on.  This message MUST be ignored if received on a connection which the client has not sent an ``attribution`` message on.
 
