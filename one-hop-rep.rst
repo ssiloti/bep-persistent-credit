@@ -49,7 +49,7 @@ If the client decides to unchoke a peer on the basis of its standing with one or
 
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
-While the client is sending piece data to a peer after having sent an ``attribution`` message it SHOULD periodically send ``update_standing`` messages to all intermediaries listed in the ``attribution`` message.  Intermediaries are located by issuing a ``get`` DHT query with its reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
+When the client receives a ``receipt`` message it SHOULD forward all of the receipts to their corresponding intermediaries using ``update_standing`` messages.  Intermediaries are located by issuing a ``get`` DHT query with their reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
 
 For peer p, a standing update cannot cause (\* c> p) to exceed (c <- p) + (\* <c p) - (c -> p).  Any standing update which would violate this constraint is rejected either in part or in full.
 
@@ -123,8 +123,8 @@ Receipt representation
 
 When piece data is transfered based on a peer's standing with an intermediary the recipient generates one or more receipts attesting to the transfer having taken place.  It is represented as a bencoded dictionary with the following keys:
 
-session
-    A monotonically increasing integer which uniquely identifies the session.  The client SHOULD increment the counter each time a new session is started.  Clients MUST NOT reuse session identifiers after a session's state has been discarded.
+seq
+    A monotonically increasing integer which uniquely identifies the receipt.  The client SHOULD generate this value using a global counter which is incremented each time a new receipt is generated.
 
 sender
     The reputation id of the peer who sent the piece data.
@@ -136,7 +136,7 @@ intermediary
     The reputation id of the intermediary.
 
 volume
-    The total bytes of piece data sent from the sender to the recipient for this session.
+    Bytes of piece data sent from the sender to the recipient since the last receipt was generated.
 
 sig
     A cryptographic signature of the dictionary with this key removed.  The signature format is as produced by the `ed25519 library`_.  The signature MUST be generated using the private key corresponding to the recipient's reputation id.
@@ -174,7 +174,7 @@ state
     The local state representation of the intermediary at the sender.
 
 receipt
-    Receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.
+    Receipt representation.  Clients SHOULD omit the intermediary key.  Clients MUST validate the intermediary key if it is present.  The receipt SHOULD be rejected by the intermediary if the sequence number is less-than-or-equal-to the largest value previously received for this pairing of sender and recipient.
 
 The client SHALL respond with the following keys:
 
