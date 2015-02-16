@@ -51,7 +51,9 @@ While the client is receiving piece data from a peer which has sent an ``attribu
 
 When the client receives a ``receipt`` message it SHOULD forward all of the receipts to their corresponding intermediaries using ``update_standing`` messages.  Intermediaries are located by issuing a ``get`` DHT query with their reputation id as the target.  The response to this query MUST be a mutable item signed by the key used to generate the intermediary's reputation id.
 
-For peer p, a standing update cannot cause (\* c> p) to exceed (c <- p) + (\* <c p) - (c -> p).  Any standing update which would violate this constraint is rejected either in part or in full.
+The value (c <- p) + (\* <c p) - (c -> p) - (\* c> p) is referred to as a peer's balance at the client.  A standing update cannot cause a peer's balance to become negative.  Any standing update which would violate this constraint is rejected either in part or in full.
+
+A session refers to a continuous period of time over which two peers have at least one connection open to each other.  Multiple concurrent connections between the same peers on different torrents are considered to be part of a single, shared session.
 
 
 Default policy
