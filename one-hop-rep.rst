@@ -43,9 +43,9 @@ c <p *      bytes of piece data received by the client from other peers with p a
 
 The above state is only maintained for peers who have sent an ``identify`` message.
 
-The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client MAY send one or more ``standing`` messages where each receipt contains the state of the client at an intermediary present in the ``known_peers`` message.
+The first time a peer becomes interested in the client the client sends a ``known_peers`` message.  This message SHALL contain a list of reputation ids the client has a direct relationship with.  If the client becomes interested in a peer and receives a ``known_peers`` message from it then the client MAY send one or more ``my_standing`` messages with the state of the client at intermediaries present in the ``known_peers`` message.
 
-If the client decides to unchoke a peer on the basis of its standing with one or more intermediary received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``standing`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
+If the client decides to unchoke a peer on the basis of its standing with one or more intermediary received from that peer then the client SHALL, before sending any piece data, send an ``attribution`` message to that peer.  The message SHALL indicate the weight assigned to each intermediary which was utilized in the decision to unchoke that peer.  The client SHALL send another ``attribution`` message if it receives additional ``my_standing`` messages which change the set of intermediaries used to determine the client's upload rate to that peer.
 
 While the client is receiving piece data from a peer which has sent an ``attribution`` message it SHALL periodically send ``receipt`` messages to that peer.  These SHALL include the client's local state for that peer as well as fractional receipts for all intermediaries listed in the most recently sent ``attribution`` message.
 
@@ -81,10 +81,11 @@ Up to 2000 reputation ids are sent in a ``known_peers`` message.
 
 For each active download session the client sends a ``receipt`` message to the sender every 10 minutes or for every 10MB of data received, whichever happens later.
 
-When the client receives a ``known_peers`` message from a peer which the client is interested in it initially sends a ``standing`` message with the 10 least observed peers which appear in the ``known_peer`` list received from that peer and which the client has good standing with.  Each minute afterwards the client sends a ``standing`` message with the next most observed peer until either the client is no longer interested in the peer, the peer unchokes the client and does not indicate a target rate by sending a ``target_rate`` message, or the observed upload rate from the peer drops below 90% of the rate indicated in the most recent ``target_rate`` message.
+When the client receives a ``known_peers`` message from a peer which the client is interested in it initially sends a ``my_standing`` message with the 10 least observed peers which appear in the ``known_peer`` list received from that peer and which the client has good standing with.  Each minute afterwards the client sends a ``my_standing`` message with the next most observed peer until either the client is no longer interested in the peer, the peer unchokes the client and does not indicate a target rate by sending a ``target_rate`` message, or the observed upload rate from the peer drops below 90% of the rate indicated in the most recent ``target_rate`` message.
 
 The client considers at most 10 intermediaries when computing a peer's ivalueA(B).
 
+After unchoking a peer and sending an ``attribution`` message, the client sends a ``get_standing`` query to each intermediary listed in the ``attribution`` message for the peer's state.  Upon receiving the state the client forwards it to the peer in a ``your_standing`` message.  If the ``get_standing`` query fails, or the standing received from the intermediary indicates that the peer has a non-positive balance, the peer is choked.
 
 State representation
 ====================
@@ -160,12 +161,34 @@ IPv4 and IPv6
 Impact on DHT
 =============
 
-The following new DHT query is defined:
+The following new DHT queries are defined.  These message MUST be sent directly to the intended recipient, they are never sent as part of a DHT traversal.  The DHT message format is used here only for convenience.
+
+
+get_standing
+------------
+Used to retrieve a peer's current state at another peer.  The message's payload is a dictionary with the following keys:
+
+for
+    The reputation id of the peer whose state is being requested.
+
+id
+    The sender's DHT node id.
+
+state
+    The local state representation of the recipient at the sender.
+
+The client SHALL respond with the following keys:
+
+id
+    The client's DHT node id.
+
+state
+    Local state representation for the requested peer at the client.
 
 
 update_standing
 ---------------
-Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  Note that this message MUST be sent directly to the intermediary specified in the receipt, it is never sent as part of a DHT traversal.  The DHT message format is used here only for convenience.  The message's payload is a dictionary with the following keys:
+Used to report a transfer between two peers using the client as an intermediary. The client SHALL use this information to update its local state for each peer.  The message's payload is a dictionary with the following keys:
 
 id
     The sender's DHT node id.
@@ -219,10 +242,13 @@ known_peers
 Indicates the peers with whom the sender has standing and can act as intermediaries.  Its payload is an array of 20-byte reputation ids.  The array SHOULD contain the peers which the sender has observed most frequently and be sorted by the sender's wA(I).
 
 
-standing
---------
+my_standing
+-----------
 Provides the recipient with proof of the sender's standing with one or more shared intermediaries.  Its payload is a dictionary whose keys are reputation ids and values are the state representations of the sender at the corresponding intermediary.  Clients MUST ignore any items in the state representations which it does not understand, except to include them when verifying the signature.  This message SHOULD only be sent on a connection which the client has received a ``known_peers`` message.
 
+your_standing
+-------------
+Same as my_standing except the state representations are for the recipient instead of the sender.
 
 attribution
 -----------
