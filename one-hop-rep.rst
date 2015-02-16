@@ -5,7 +5,7 @@ Last-Modified: $Date$
 Author:  Steven Siloti <ssiloti@gmail.com>
 Status:  Draft
 Type:    Standards Track
-Requires: 5, 10
+Requires: 5, 10, 44
 Content-Type: text/x-rst
 Created: 09-Nov-2013
 Post-History:
@@ -148,7 +148,7 @@ sig
 Contact Information
 ===================
 
-The client MUST store its contact info as a mutable item using the `DHT store extension`_.  The item MUST be signed using the same key as used to generate the client's reputation id.  The item's value is the IP and port which the client is listening for DHT messages on.  It may have one of three formats depending on which IP versions the peer is listening on.  All values are stored in "compact" format.
+The client MUST store its contact info as a mutable item as defined by BEP 44.  The item MUST be signed using the same key as used to generate the client's reputation id.  The item's value is the IP and port which the client is listening for DHT messages on.  It may have one of three formats depending on which IP versions the peer is listening on.  All values are stored in "compact" format.
 
 IPv4 only
     IPv4 address followed by port for a total of 6 bytes.
