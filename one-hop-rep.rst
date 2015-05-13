@@ -23,6 +23,7 @@ Rationale
 
 The current scheme of reciprocating data transfer within each individual torrent has the shortcoming that it gives peers no incentive to remain active on a torrent after it has finished downloading.  In order to give seed peers an incentive to continue contributing to the swarm a method must be devised to give such peers some token which can be used to gain preferential treatment in future torrents.
 
+It is also hoped that decoupling the incentive scheme from individual swarms will enable bittorrent to be effectively utilized for applications beyond bulk file transfer such as live streaming and decentralized databases.
 
 Reputation Scheme
 =================
@@ -175,6 +176,9 @@ for
 
 id
     The sender's DHT node id.
+
+sender
+    The sender's reputation id.
 
 state
     The local state representation of the recipient at the sender.
